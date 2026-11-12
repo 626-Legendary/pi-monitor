@@ -1,0 +1,73 @@
+services:
+  docker-proxy:
+    image: nginx:stable-alpine
+    container_name: pi-monitor-docker-proxy
+    labels:
+      description: "Docker API 只读代理，限制监控程序可访问的接口"
+    restart: unless-stopped
+    network_mode: none
+    read_only: true
+    entrypoint: ["nginx", "-g", "daemon off;"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - docker-proxy-socket:/run/docker-proxy
+      - ./docker-proxy.conf:/etc/nginx/nginx.conf:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  pi-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pi-monitor:latest
+    container_name: pi-monitor
+    labels:
+      description: "树莓派监控面板，展示系统资源、设备温度和容器状态"
+    restart: unless-stopped
+    depends_on:
+      - docker-proxy
+    ports:
+      - "${MONITOR_BIND_ADDRESS:-0.0.0.0}:${MONITOR_PORT:-8888}:8888"
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      # statvfs on this host file reports the host root filesystem's capacity.
+      # If /etc is a separate filesystem, choose a file on the root filesystem.
+      - /etc/hostname:/host/rootfs-anchor:ro
+      - /sys:/host/sys:ro
+      - docker-proxy-socket:/run/docker-proxy:ro
+      # Only sanitized SSH snapshots; no host journal or system bus is exposed.
+      - type: bind
+        source: /run/pi-monitor-ssh
+        target: /host/ssh
+        read_only: true
+        bind:
+          create_host_path: true
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      DOCKER_HOST: unix:///run/docker-proxy/docker.sock
+      SAMPLE_INTERVAL_SECONDS: "${SAMPLE_INTERVAL_SECONDS:-10}"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  docker-proxy-socket:

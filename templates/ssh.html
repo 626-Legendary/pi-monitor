@@ -1,0 +1,21 @@
+{% if ssh.warning %}<div class="warning ssh-warning" role="status">{{ ssh.warning }}</div>{% endif %}
+<div class="ssh-panels">
+  <div class="ssh-panel">
+    <div class="panel-heading"><div class="panel-title"><h2>当前 SSH 登录用户</h2><span class="container-count">{{ ssh.sessions['items']|length }} 个会话</span></div></div>
+    {% if ssh.sessions.error %}<div class="warning" role="status">{{ ssh.sessions.error }}{% if ssh.sessions['items'] %} 以下为上次数据。{% endif %}</div>{% endif %}
+    {% if ssh.sessions['items'] %}
+    <div class="table-wrap"><table><thead><tr><th>用户</th><th>来源 IP</th><th>终端</th><th>登录时间</th></tr></thead><tbody>
+      {% for session in ssh.sessions['items'] %}<tr><td class="container-name">{{ session.user }}</td><td>{{ session.source_ip or '—' }}</td><td>{{ session.terminal or '无终端' }}</td><td>{% if session.login_at is not none %}<time data-timestamp="{{ session.login_at }}">{{ session.login_at|timestamp }}</time>{% else %}—{% endif %}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<div class="empty-state">{{ '会话信息暂不可用' if ssh.warning or ssh.sessions.error else '当前没有 SSH 登录会话' }}</div>{% endif %}
+  </div>
+  <div class="ssh-panel">
+    <div class="panel-heading"><div class="panel-title"><h2>最近成功登录</h2><span class="container-count">最多 20 条</span></div></div>
+    {% if ssh.history.error %}<div class="warning" role="status">{{ ssh.history.error }}{% if ssh.history['items'] %} 以下为上次数据。{% endif %}</div>{% endif %}
+    {% if ssh.history['items'] %}
+    <div class="table-wrap"><table><thead><tr><th>用户</th><th>来源 IP</th><th>认证方式</th><th>登录时间</th></tr></thead><tbody>
+      {% for event in ssh.history['items'] %}<tr><td class="container-name">{{ event.user }}</td><td>{{ event.source_ip or '—' }}</td><td>{{ {'publickey':'密钥', 'password':'密码', 'keyboard-interactive/pam':'交互认证'}.get(event.method, event.method) }}</td><td>{% if event.login_at is not none %}<time data-timestamp="{{ event.login_at }}">{{ event.login_at|timestamp }}</time>{% else %}—{% endif %}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<div class="empty-state">{{ '登录记录暂不可用' if ssh.warning or ssh.history.error else '当前保留的日志中没有找到成功登录记录' }}</div>{% endif %}
+  </div>
+</div>

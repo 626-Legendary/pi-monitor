@@ -1,0 +1,31 @@
+# Python and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.egg-info/
+build/
+dist/
+
+# Local configuration and runtime data
+.env
+.env.*
+!.env.example
+*.log
+*.pid
+*.sock
+/host-data/
+/0
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+*~
+*.swp

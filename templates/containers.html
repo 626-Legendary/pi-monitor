@@ -1,0 +1,48 @@
+
+        <div class="panel-heading">
+          <div class="panel-title">
+            <h2>Docker 容器</h2>
+            <span class="container-count">{{ containers|length }} 个容器</span>
+          </div>
+
+        </div>
+
+        {% if docker_warning %}
+          <div class="warning" role="alert">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m12 3 9 16H3l9-16Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 9v4m0 3h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            <div>{{ docker_warning }}</div>
+          </div>
+        {% elif containers %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">容器名称</th>
+                  <th scope="col">描述</th>
+                  <th scope="col">运行状态</th>
+                  <th scope="col">重启次数</th>
+                  <th scope="col">镜像名称</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for container in containers %}
+                  <tr>
+                    <td class="container-name">{{ container.name }}</td>
+                    <td class="container-description{% if not container.description %} is-empty{% endif %}">{{ container.description or "未填写" }}</td>
+                    <td>
+                      {% set status_class = 'running' if container.status == 'running' else 'failed' if container.status == 'dead' else 'restarting' if container.status == 'restarting' else 'other' %}
+                      <span class="status-pill {{ status_class }}">{{ {'running': '运行中', 'exited': '已停止', 'dead': '异常', 'restarting': '重启中', 'paused': '已暂停', 'created': '已创建', 'removing': '移除中'}.get(container.status, container.status) }}</span>
+                    </td>
+                    <td class="restart-count">{{ container.restart_count }} 次</td>
+                    <td class="container-image">{{ container.image }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 9h8m-8 4h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            还没有发现 Docker 容器
+          </div>
+        {% endif %}

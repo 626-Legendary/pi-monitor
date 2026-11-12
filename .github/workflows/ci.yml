@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run tests including dashboard refresh checks
+        run: python -m pytest
+      - name: Validate install script and Compose
+        run: |
+          sh -n host/install.sh
+          docker compose config --quiet
+          docker compose --env-file .env.example config --quiet
+
+  docker:
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Build image
+        run: docker build --tag pi-monitor:ci .
+      - name: Verify non-root runtime and assets
+        run: >-
+          docker run --rm --network none --read-only --cap-drop ALL
+          --entrypoint python pi-monitor:ci -c
+          'import os; from pathlib import Path; import main;
+          assert os.getuid() == 10001;
+          assert all(Path(p).is_file() for p in ["raspberry-pi.png", "favicon.svg", "templates/ssh.html"]);
+          assert not any(route.path == "/health" for route in main.app.routes)'
+      - name: Validate Docker proxy configuration
+        run: >-
+          docker run --rm --network none --read-only --cap-drop ALL
+          --tmpfs /tmp --tmpfs /run/docker-proxy
+          -v "$PWD/docker-proxy.conf:/etc/nginx/nginx.conf:ro"
+          --entrypoint nginx nginx:stable-alpine -t

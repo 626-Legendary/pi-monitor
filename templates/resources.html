@@ -1,0 +1,132 @@
+
+        <article class="metric-card">
+          <div class="metric-top">
+            <div class="metric-name">
+              <span class="metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.64 5.64l2.12 2.12m8.48 8.48 2.12 2.12m0-12.72-2.12 2.12m-8.48 8.48-2.12 2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/></svg>
+              </span>
+              CPU 使用率
+            </div>
+            <span class="metric-note">{{ logical_cpu_count }} 核</span>
+          </div>
+          <p class="metric-value{% if cpu_percent is none %} is-unavailable{% endif %}">{% if cpu_percent is not none %}{{ cpu_percent }}<span class="unit">%</span>{% else %}暂无数据{% endif %}</p>
+          <p class="metric-detail">最近一个采集周期的平均占用</p>
+          <div class="meter" role="meter" aria-label="CPU 使用率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ cpu_percent if cpu_percent is not none else 0 }}">
+            <span class="meter-fill" style="width: {{ cpu_percent if cpu_percent is not none else 0 }}%"></span>
+          </div>
+        </article>
+
+        <article class="metric-card">
+          <div class="metric-top">
+            <div class="metric-name">
+              <span class="metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 9h8m-8 4h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </span>
+              物理内存
+            </div>
+            <span class="metric-note">RAM</span>
+          </div>
+          <p class="metric-value{% if memory.percent is none %} is-unavailable{% endif %}">{% if memory.percent is not none %}{{ memory.percent }}<span class="unit">%</span>{% else %}暂无数据{% endif %}</p>
+          <p class="metric-detail">可用 {{ memory.available_bytes|bytes }} · 已用 {{ memory.used_bytes|bytes }}</p>
+          <div class="meter" role="meter" aria-label="物理内存使用率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ memory.percent if memory.percent is not none else 0 }}">
+            <span class="meter-fill" style="width: {{ memory.percent if memory.percent is not none else 0 }}%"></span>
+          </div>
+        </article>
+
+        <article class="metric-card">
+          <div class="metric-top">
+            <div class="metric-name">
+              <span class="metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5m0 14h16M7 15l3-4 3 2 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="7" r="1.3" fill="currentColor"/></svg>
+              </span>
+              根分区磁盘
+            </div>
+            <span class="metric-note">/</span>
+          </div>
+          <p class="metric-value{% if disk.percent is none %} is-unavailable{% endif %}">{% if disk.percent is not none %}{{ disk.percent }}<span class="unit">%</span>{% else %}暂无数据{% endif %}</p>
+          <p class="metric-detail">可用 {{ disk.free_bytes|bytes }} · 总计 {{ disk.total_bytes|bytes }}</p>
+          <div class="meter" role="meter" aria-label="根分区使用率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ disk.percent if disk.percent is not none else 0 }}">
+            <span class="meter-fill warm" style="width: {{ disk.percent if disk.percent is not none else 0 }}%"></span>
+          </div>
+        </article>
+
+        <article class="metric-card">
+          <div class="metric-top">
+            <div class="metric-name">
+              <span class="metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 12v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </span>
+              SoC 核心温度
+            </div>
+            <span class="metric-note">温度</span>
+          </div>
+          <p class="metric-value{% if temperature_c is none %} is-unavailable{% endif %}">{% if temperature_c is not none %}{{ temperature_c }}<span class="unit">°C</span>{% else %}暂无数据{% endif %}</p>
+          <p class="metric-detail">处理器温度</p>
+        </article>
+
+        <article class="metric-card">
+          <div class="metric-top">
+            <div class="metric-name">
+              <span class="metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 18h16M6 14l3-4 3 2 3-6 3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              系统平均负载
+            </div>
+            <span class="metric-note">{{ logical_cpu_count }} 核</span>
+          </div>
+          {% if load_average is not none %}
+            <div class="load-values" aria-label="1、5、15 分钟平均负载">
+              <div class="load-value"><strong>{{ load_average[0] }}</strong><span>1 分钟</span></div>
+              <div class="load-value"><strong>{{ load_average[1] }}</strong><span>5 分钟</span></div>
+              <div class="load-value"><strong>{{ load_average[2] }}</strong><span>15 分钟</span></div>
+            </div>
+          {% else %}
+            <p class="metric-value compact">不可用</p>
+            <p class="metric-detail">当前环境不支持读取负载</p>
+          {% endif %}
+        </article>
+
+        <article class="metric-card">
+          <div class="metric-top">
+            <div class="metric-name">
+              <span class="metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3.3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              </span>
+              运行时间
+            </div>
+            <span class="metric-note">主机</span>
+          </div>
+          <p class="metric-value compact">{{ host_uptime_seconds|uptime }}</p>
+          <p class="metric-detail">自设备上次启动以来</p>
+        </article>
+
+        <article class="metric-card">
+          <div class="metric-top">
+            <div class="metric-name">
+              <span class="metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v3m0 12v3M3 12h3m12 0h3m-3.34-6.66-2.12 2.12m-7.08 7.08-2.12 2.12m0-11.32 2.12 2.12m7.08 7.08 2.12 2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg>
+              </span>
+              散热风扇
+            </div>
+            <span class="metric-note">转速</span>
+          </div>
+          <p class="metric-value{% if fan_rpm is none %} is-unavailable{% endif %}">{% if fan_rpm is not none %}{{ fan_rpm }}<span class="unit">RPM</span>{% else %}暂无数据{% endif %}</p>
+          <p class="metric-detail">风扇转速 · 按设备支持情况显示</p>
+        </article>
+
+        <article class="metric-card">
+          <div class="metric-top">
+            <div class="metric-name">
+              <span class="metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="7" r="1.5" fill="white" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="12" r="1.5" fill="white" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="17" r="1.5" fill="white" stroke="currentColor" stroke-width="1.5"/></svg>
+              </span>
+              Swap 交换区
+            </div>
+            <span class="metric-note">SWAP</span>
+          </div>
+          <p class="metric-value{% if memory.swap_percent is none %} is-unavailable{% endif %}">{% if memory.swap_percent is not none %}{{ memory.swap_percent }}<span class="unit">%</span>{% else %}暂无数据{% endif %}</p>
+          <p class="metric-detail">已用 {{ memory.swap_used_bytes|bytes }} · 总计 {{ memory.swap_total_bytes|bytes }}</p>
+          <div class="meter" role="meter" aria-label="Swap 使用率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ memory.swap_percent if memory.swap_percent is not none else 0 }}">
+            <span class="meter-fill warm" style="width: {{ memory.swap_percent if memory.swap_percent is not none else 0 }}%"></span>
+          </div>
+        </article>

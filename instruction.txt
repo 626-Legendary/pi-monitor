@@ -1,0 +1,24 @@
+# 快速操作；完整说明见 README.md
+
+# 构建并启动
+docker compose up -d --build
+
+# 可选：安装 / 更新宿主机 SSH 只读采集服务
+sudo sh host/install.sh
+
+# 查看日志
+docker compose logs -f --tail=100
+
+# 停止 / 移除容器（保留镜像和命名卷）
+docker compose stop
+docker compose down
+
+# 配置端口、绑定地址与采集周期
+# 复制 .env.example 为 .env，修改后执行 docker compose up -d
+
+# 测试（建议先创建虚拟环境）
+python -m pip install -r requirements-dev.txt
+python -m pytest
+
+# SSH 详细安装、排查与卸载：host/README.md
+# 容器描述：在对应服务 labels 中填写 description，然后 docker compose up -d

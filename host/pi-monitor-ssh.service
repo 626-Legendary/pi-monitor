@@ -1,0 +1,32 @@
+[Unit]
+Description=Pi Monitor read-only SSH session exporter
+After=systemd-logind.service systemd-journald.service
+
+[Service]
+Type=simple
+User=pi-monitor-ssh
+Group=pi-monitor-ssh
+SupplementaryGroups=systemd-journal
+ExecStart=/usr/bin/python3 /usr/local/lib/pi-monitor/ssh_exporter.py
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=pi-monitor-ssh
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+UMask=0022
+Environment=PYTHONDONTWRITEBYTECODE=1
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

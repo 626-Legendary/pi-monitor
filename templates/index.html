@@ -1,0 +1,956 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#bd2354">
+  <meta name="description" content="轻量树莓派监控面板，集中查看系统资源、硬件传感器和 Docker 容器状态。">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="apple-touch-icon" href="/assets/raspberry-pi.png">
+  <title>系统概览 · 树莓派监控</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --md-sys-color-primary: #bd2354;
+      --md-sys-color-on-surface: #23332d;
+      --md-state-success: #16754c;
+      --md-state-warning: #9a650c;
+      --canvas: #f5f6f3;
+      --muted: #68736d;
+      --border: #e2e6df;
+      --raspberry-tint: #fbf0f4;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--canvas);
+      color: var(--md-sys-color-on-surface);
+      font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .app-shell {
+      width: min(1200px, calc(100% - 64px));
+      margin: auto;
+      padding: 28px 0 24px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      background: #23332d;
+      border-radius: 14px;
+      flex-shrink: 0;
+    }
+
+    .brand-mark img {
+      display: block;
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+    }
+
+    .brand-name {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 750;
+      letter-spacing: -.5px;
+    }
+
+    .brand-caption {
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .service-state {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--md-state-success);
+      flex-shrink: 0;
+    }
+
+    .refresh-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: white;
+      color: #34483e;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+    }
+
+    .refresh-button:hover {
+      border-color: #bd2354;
+      background: var(--raspberry-tint);
+      color: var(--md-sys-color-primary);
+    }
+
+    .refresh-button:disabled {
+      opacity: .6;
+      cursor: wait;
+    }
+
+    .refresh-button:focus-visible {
+      outline: 3px solid #bd235455;
+      outline-offset: 3px;
+    }
+
+    .refresh-button svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .refresh-button.is-refreshing svg {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .page-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 24px;
+      padding: 36px 0 28px;
+    }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 9px;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 1.5px;
+      color: var(--md-sys-color-primary);
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 16px;
+      height: 2px;
+      background: currentColor;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(26px, 3vw, 34px);
+      line-height: 1.3;
+      letter-spacing: -1px;
+      font-weight: 700;
+    }
+
+    .page-description {
+      color: var(--muted);
+      margin: 10px 0 0;
+      font-size: 13px;
+    }
+
+    .updated-label {
+      flex-shrink: 0;
+      text-align: right;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .updated-label strong {
+      display: block;
+      margin-top: 5px;
+      color: #34483e;
+      font-size: 12px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .sampling-note {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      margin-top: 9px;
+      color: #68736d;
+      font-size: 11px;
+    }
+
+    .sampling-note::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #9aaa9e;
+    }
+
+    .section-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin: 0 0 12px;
+    }
+
+    .section-label h2 {
+      font-size: 14px;
+      font-weight: 650;
+      margin: 0;
+    }
+
+    .section-hint {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 180px;
+      padding: 19px 20px 17px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .metric-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .metric-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #58665e;
+      font-size: 12px;
+      font-weight: 550;
+    }
+
+    .metric-icon {
+      display: grid;
+      place-items: center;
+      color: #7b8d80;
+    }
+
+    .metric-icon svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    .metric-note {
+      flex-shrink: 0;
+      font-size: 10px;
+      color: #7d8880;
+      font-weight: 500;
+      letter-spacing: .3px;
+    }
+
+    .metric-value {
+      margin: 20px 0 0;
+      font-size: 34px;
+      font-weight: 650;
+      line-height: 1.2;
+      letter-spacing: -1.2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-value .unit {
+      margin-left: 5px;
+      color: #849087;
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 0;
+    }
+
+    .metric-value.is-unavailable {
+      font-size: 22px;
+      letter-spacing: 0;
+      color: #849087;
+    }
+
+    .metric-value.compact {
+      font-size: 21px;
+      letter-spacing: -.4px;
+      margin-top: 24px;
+    }
+
+    .metric-detail {
+      color: var(--muted);
+      font-size: 11px;
+      margin: 8px 0 0;
+      overflow-wrap: anywhere;
+    }
+
+    .meter {
+      position: relative;
+      height: 4px;
+      margin-top: auto;
+      padding-top: 0;
+      background: #edf0e9;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .meter-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      background: #4c8461;
+      border-radius: 4px;
+      transition: width .3s;
+    }
+
+    .meter-fill.warm {
+      background: #ae8254;
+    }
+
+    .metric-card:first-child {
+      border-top: 3px solid var(--md-sys-color-primary);
+      padding-top: 17px;
+    }
+
+    .metric-card:first-child .metric-icon,
+    .metric-card:first-child .metric-value {
+      color: var(--md-sys-color-primary);
+    }
+
+    .metric-card:first-child .meter-fill {
+      background: var(--md-sys-color-primary);
+    }
+
+    .load-values {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 22px;
+    }
+
+    .load-value+.load-value {
+      border-left: 1px solid var(--border);
+      padding-left: 12px;
+    }
+
+    .load-value strong {
+      display: block;
+      font-size: 23px;
+      line-height: 1.3;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .load-value span {
+      display: block;
+      margin-top: 8px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .container-section {
+      margin-top: 28px;
+    }
+
+    .container-panel {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    .panel-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 17px 22px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .panel-title h2 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .container-count {
+      padding: 1px 8px;
+      border-radius: 6px;
+      background: #f0f3ed;
+      color: #586b5c;
+      font-size: 11px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      min-width: 780px;
+      border-collapse: collapse;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #fafbf8;
+      padding: 11px 22px;
+      color: #788279;
+      font-size: 11px;
+      font-weight: 500;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 14px 22px;
+      font-size: 12px;
+      border-bottom: 1px solid #edf0e9;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tbody tr:hover {
+      background: #fcfcfa;
+    }
+
+    .container-name {
+      font-weight: 600;
+    }
+
+    .container-description {
+      min-width: 160px;
+      max-width: 300px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      color: #58665e;
+      line-height: 1.6;
+    }
+
+    .container-description.is-empty {
+      color: #9aa39c;
+    }
+
+    .container-image {
+      max-width: 400px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      color: var(--muted);
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      color: #717a73;
+      background: #f0f2ee;
+      font-size: 11px;
+    }
+
+    .status-pill::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      background: currentColor;
+      border-radius: 50%;
+    }
+
+    .status-pill.running {
+      color: #16754c;
+      background: #edf6ee;
+    }
+
+    .status-pill.failed {
+      color: #b43b46;
+      background: #fcf0f1;
+    }
+
+    .status-pill.restarting {
+      color: #976214;
+      background: #fcf5e8;
+    }
+
+    .restart-count {
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+    }
+
+    .warning {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin: 18px 22px;
+      padding: 12px 14px;
+      border: 1px solid #ecdfbb;
+      border-radius: 8px;
+      background: #fffbef;
+      color: #8a651d;
+      font-size: 12px;
+    }
+
+    .warning svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .empty-state {
+      padding: 36px 24px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .empty-state svg {
+      display: block;
+      width: 26px;
+      height: 26px;
+      margin: 0 auto 10px;
+      color: #9caa9d;
+    }
+
+    .loading-state {
+      margin: 0;
+      padding: 24px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metrics-grid>.loading-state {
+      grid-column: 1 / -1;
+      border: 1px dashed #d5ddcf;
+      border-radius: 14px;
+    }
+
+
+    .toast {
+      position: fixed;
+      z-index: 10;
+      bottom: 24px;
+      left: 50%;
+      transform: translate(-50%, 12px);
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 11px 18px;
+      border-radius: 10px;
+      background: #23332d;
+      color: #fff;
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s, transform .15s;
+      box-shadow: 0 6px 24px #23332d22;
+      white-space: nowrap;
+    }
+
+    .toast.visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @media (max-width: 1000px) {
+      .metrics-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .app-shell {
+        width: calc(100% - 40px);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .app-shell {
+        width: calc(100% - 28px);
+        padding-top: 18px;
+      }
+
+      .topbar {
+        flex-wrap: wrap;
+        gap: 16px;
+        padding-bottom: 18px;
+      }
+
+      .topbar-actions {
+        width: 100%;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .page-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 18px;
+        padding: 26px 0 22px;
+      }
+
+      .updated-label {
+        text-align: left;
+      }
+
+      .updated-label strong {
+        display: inline;
+        margin-left: 7px;
+      }
+
+      .sampling-note {
+        display: flex;
+        margin-top: 5px;
+      }
+
+      .section-hint {
+        font-size: 10px;
+      }
+
+      .metrics-grid {
+        gap: 10px;
+      }
+
+      .metric-card {
+        padding: 15px 12px;
+        min-height: 172px;
+      }
+
+      .metric-card:first-child {
+        padding-top: 13px;
+      }
+
+      .metric-top {
+        gap: 4px;
+      }
+
+      .metric-name {
+        font-size: 11px;
+        gap: 5px;
+      }
+
+      .metric-icon svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .metric-note {
+        font-size: 9px;
+      }
+
+      .metric-value {
+        font-size: 29px;
+      }
+
+      .metric-detail {
+        font-size: 10px;
+      }
+
+      .metric-value.compact {
+        font-size: 17px;
+      }
+
+      .load-values {
+        gap: 4px;
+      }
+
+      .load-value+.load-value {
+        padding-left: 6px;
+      }
+
+      .load-value strong {
+        font-size: 18px;
+      }
+
+      .panel-heading,
+      th,
+      td {
+        padding: 12px 14px;
+      }
+
+      .panel-heading>.section-hint {
+        display: none;
+      }
+
+    }
+
+    @media (max-width: 360px) {
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      *::before,
+      *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+
+    .container-panel table {
+      min-width: 780px;
+    }
+
+
+
+
+    .ssh-panels {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      align-items: start;
+    }
+
+    .ssh-panel {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .ssh-panel table {
+      min-width: 480px;
+    }
+
+    .ssh-panel th,
+    .ssh-panel td {
+      padding: 11px 16px;
+    }
+
+    .ssh-panel td {
+      font-size: 11px;
+    }
+
+
+    .ssh-warning {
+      margin: 0 0 14px;
+    }
+
+    @media (max-width: 1000px) {
+      .ssh-panels {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">
+          <img src="/assets/raspberry-pi.png" width="40" height="40" alt="树莓派标志" fetchpriority="high">
+        </span>
+        <div>
+          <p class="brand-name">Pi Monitor<span style="color:var(--md-sys-color-primary)">.</span></p>
+          <p class="brand-caption">树莓派 · 设备监控</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <div class="service-state" role="status" aria-live="polite">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span id="sampling-state">{{ "正在连接设备" if not data else "采集异常" if data.stale else "Docker 连接异常" if
+            data.docker_warning else "采集正常" }}</span>
+        </div>
+        <button class="refresh-button" id="refresh-button" type="button" aria-label="立即刷新监控数据">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4m-4 5a8 8 0 0 0 14.9 3M20 20v-4h-4" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>立即刷新</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="page-heading" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">RASPBERRY PI / OVERVIEW</p>
+      </div>
+      <div class="updated-label">
+        采集时间
+        <strong id="updated-at">{% if data %}{{ updated_at }}{% else %}等待首次采集{% endif %}</strong>
+
+      </div>
+    </section>
+
+    <!-- 系统资源 -->
+    <section aria-labelledby="resources-title">
+      <div class="section-label">
+        <h2 id="resources-title">系统资源</h2>
+
+      </div>
+      <div class="metrics-grid">
+        {% if data %}{% include "resources.html" %}{% else %}<p class="loading-state">正在获取设备状态，请稍候…</p>{% endif %}
+      </div>
+    </section>
+
+    <!-- 容器状态 -->
+    <section class="container-section" aria-labelledby="containers-title">
+      <div class="section-label">
+        <h2 id="containers-title">容器服务</h2>
+
+      </div>
+      <div class="container-panel">
+        {% if data %}{% include "containers.html" %}{% else %}<p class="loading-state">正在获取设备状态，请稍候…</p>{% endif %}
+      </div>
+    </section>
+
+    <section class="container-section" aria-labelledby="ssh-title">
+      <div class="section-label">
+
+      </div>
+      <div id="ssh-activity">{% if data %}{% include "ssh.html" %}{% else %}<p class="loading-state">正在读取 SSH 信息…</p>{%
+        endif %}</div>
+    </section>
+
+  </main>
+
+  <div class="toast" id="refresh-toast" role="status" aria-live="polite">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="10" stroke="#fff" stroke-width="2" />
+      <path d="m9 12 2 2 4-4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    <span>正在更新监控数据…</span>
+  </div>
+
+  <script>
+    (() => {
+      const refreshBtn = document.getElementById("refresh-button");
+      const toast = document.getElementById("refresh-toast");
+      const state = document.getElementById("sampling-state");
+      const dot = document.querySelector(".live-dot");
+      const interval = {{ sample_interval_seconds| tojson
+    }} * 1000;
+    let busy = false;
+    let timer;
+    let latest = {{ data| tojson }};
+    let disconnected = false;
+    let lastReceivedAt = performance.now();
+
+    function updateState() {
+      const age = latest ? (latest.snapshot_age_seconds || 0) + (performance.now() - lastReceivedAt) / 1000 : 0;
+      const stale = latest && (latest.stale || age > Math.max(30, interval / 1000 * 3));
+      const warning = disconnected || !latest || stale || latest.sampling_error || latest.docker_warning;
+      state.textContent = disconnected ? "连接中断，等待重试" : !latest ? "等待首次采集" :
+        latest.sampling_error ? "后台采集异常，显示上次数据" :
+          stale ? "数据已过期，等待更新" :
+          latest.docker_warning ? "Docker 连接异常" : "连接正常";
+      dot.style.background = warning ? "var(--md-state-warning)" : "var(--md-state-success)";
+      dot.style.boxShadow = "none";
+      document.querySelectorAll("time[data-timestamp]").forEach(element => {
+        element.textContent = new Date(Number(element.dataset.timestamp) * 1000).toLocaleString();
+      });
+      if (latest) {
+        document.getElementById("updated-at").textContent = new Date(latest.sampled_at * 1000).toLocaleString();
+      }
+    }
+
+    async function refresh() {
+      if (busy) return;
+      window.clearTimeout(timer);
+      busy = true;
+      refreshBtn.disabled = true;
+      refreshBtn.classList.add("is-refreshing");
+      refreshBtn.setAttribute("aria-busy", "true");
+      toast.classList.add("visible");
+      try {
+        const response = await fetch("/api/metrics", { cache: "no-store", signal: AbortSignal.timeout(5000) });
+        if (!response.ok) throw new Error("Metrics unavailable");
+        const data = await response.json();
+        // Fragments are rendered by Jinja with automatic HTML escaping.
+        document.querySelector(".metrics-grid").innerHTML = data.resources_html;
+        document.querySelector(".container-panel").innerHTML = data.containers_html;
+        document.getElementById("ssh-activity").innerHTML = data.ssh_html;
+        latest = data;
+        lastReceivedAt = performance.now();
+        disconnected = false;
+      } catch (error) {
+        disconnected = true;
+      } finally {
+        updateState();
+        busy = false;
+        refreshBtn.disabled = false;
+        refreshBtn.classList.remove("is-refreshing");
+        refreshBtn.setAttribute("aria-busy", "false");
+        toast.classList.remove("visible");
+        timer = window.setTimeout(refresh, latest ? interval : 1000);
+      }
+    }
+    // Manual refresh reads the cache; it never triggers hardware or Docker I/O.
+    refreshBtn.addEventListener("click", refresh);
+    updateState();
+    refresh();
+    window.setInterval(updateState, 1000);
+    }) ();
+  </script>
+</body>
+
+</html>
